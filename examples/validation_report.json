@@ -1,0 +1,73 @@
+{
+  "instance_id": "RCS-VLV-001-requirements",
+  "template_id": "primary_loop_valve_baseline_v0.2_150reqs",
+  "valve_tag": "RCS-VLV-001",
+  "generated_utc": "2026-02-02T20:38:02Z",
+  "overall_status": "pass",
+  "counts": {
+    "error_count": 0,
+    "warning_count": 22,
+    "info_count": 0,
+    "issue_count": 22
+  },
+  "by_code": [
+    {
+      "severity": "warning",
+      "code": "REQ_ATOMICITY_ANDOR",
+      "count": 6,
+      "requirement_ids": [
+        "PLV-028",
+        "PLV-043",
+        "PLV-074",
+        "PLV-082",
+        "PLV-088",
+        "PLV-112"
+      ],
+      "message_examples": [
+        "Requirement contains 'and/or' which is often ambiguous; consider splitting.",
+        "Requirement contains 'and/or' which is often ambiguous; consider splitting.",
+        "Requirement contains 'and/or' which is often ambiguous; consider splitting."
+      ]
+    },
+    {
+      "severity": "warning",
+      "code": "REQ_ATOMICITY_CONJUNCTION",
+      "count": 8,
+      "requirement_ids": [
+        "PLV-014",
+        "PLV-026",
+        "PLV-031",
+        "PLV-052",
+        "PLV-056",
+        "PLV-106",
+        "PLV-109",
+        "PLV-122"
+      ],
+      "message_examples": [
+        "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting."
+      ]
+    },
+    {
+      "severity": "warning",
+      "code": "REQ_ATOMICITY_MULTI_SHALL",
+      "count": 8,
+      "requirement_ids": [
+        "PLV-014",
+        "PLV-026",
+        "PLV-031",
+        "PLV-052",
+        "PLV-056",
+        "PLV-106",
+        "PLV-109",
+        "PLV-122"
+      ],
+      "message_examples": [
+        "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "Requirement contains 2 occurrences of 'shall'; may be compound."
+      ]
+    }
+  ]
+}

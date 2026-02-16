@@ -1,0 +1,24 @@
+{
+  "profile_id": "example_MOV_primary_loop_isolation",
+  "valve_tag": "RCS-VLV-001",
+  "valve_type": "gate",
+  "function": "isolation",
+  "actuation_type": "MOV",
+  "code_class": "ASME_III_Class_1",
+  "safety_classification": "safety_related",
+  "seismic_category": "Seismic_Category_I",
+  "environment_profile": "harsh",
+  "design_pressure": 16.0,
+  "design_temperature": 343.0,
+  "dp_max": 5.0,
+  "flowrate_max": 5000.0,
+  "stroke_time_limit": 10.0,
+  "seat_leakage_limit": "TBD_by_safety_analysis_or_spec",
+  "relief_setpoint": null,
+  "service_life_years": 60,
+  "design_cycles": 1000,
+  "metadata": {
+    "system": "Reactor Coolant System (Primary Loop)",
+    "notes": "Example only. Replace with project-specific design basis inputs and classifications."
+  }
+}
