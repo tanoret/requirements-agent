@@ -63,6 +63,83 @@ def _coerce_from_schema(raw: str, schema_prop: Dict[str, Any]) -> Any:
     return text
 
 
+def _extract_unit(schema_prop: Dict[str, Any]) -> str | None:
+    description = (schema_prop.get("description") or "").strip()
+    if not description:
+        return None
+
+    if ":" in description:
+        candidate = description.split(":", maxsplit=1)[1].strip()
+        if candidate and len(candidate) <= 24:
+            return candidate
+
+    if len(description) <= 24 and " " not in description:
+        return description
+
+    return None
+
+
+def _default_value(component_name: str, key: str, schema_prop: Dict[str, Any]) -> Any:
+    enum_values = schema_prop.get("enum")
+    if isinstance(enum_values, list) and enum_values:
+        return enum_values[0]
+
+    key_l = key.lower()
+    if key_l in {"profile_id", "metadata"}:
+        return ""
+    if key_l.endswith("_tag"):
+        return f"{component_name.upper()}-001"
+
+    prop_type = schema_prop.get("type")
+    if isinstance(prop_type, list):
+        non_null = [t for t in prop_type if t != "null"]
+        prop_type = non_null[0] if non_null else None
+
+    if prop_type not in {"number", "integer", "boolean"}:
+        return ""
+
+    if prop_type == "boolean":
+        return False
+
+    unit = (_extract_unit(schema_prop) or "").lower()
+    numeric_defaults = [
+        ("years", 40),
+        ("months", 12),
+        ("cycles", 1000),
+        ("rpm", 1800),
+        ("mw", 50),
+        ("kw", 500),
+        ("mpa", 10),
+        ("kpa", 100),
+        ("kg/s", 100),
+        ("kg/h", 500),
+        ("m3/s", 5),
+        ("m3", 10),
+        ("m2", 100),
+        ("m", 5),
+        ("mm", 25),
+        ("c/hr", 30),
+        ("c", 300),
+        ("s", 10),
+        ("h", 24),
+        ("hr", 24),
+        ("%", 95),
+        ("percent", 95),
+        ("fraction", 0.9),
+        ("count", 2),
+    ]
+    for token, value in numeric_defaults:
+        if token in unit:
+            return int(value) if prop_type == "integer" else value
+
+    if "min" in key_l:
+        return 1 if prop_type == "integer" else 1.0
+    if "max" in key_l:
+        return 10 if prop_type == "integer" else 10.0
+
+    return 1 if prop_type == "integer" else 1.0
+
+
 def _render_profile_editor(component_name: str) -> Dict[str, Any]:
     cfg = get_component(component_name)
     schema = _load_schema(cfg.schema_default)
@@ -70,7 +147,7 @@ def _render_profile_editor(component_name: str) -> Dict[str, Any]:
     required = set(schema.get("required", []))
 
     st.subheader(f"{schema.get('title', component_name.title())} fields")
-    st.caption("Fill in tags/fields from the component schema. Leave blank if unknown.")
+    st.caption("Fill in tags/fields from the component schema. Values are pre-populated with editable defaults.")
 
     profile: Dict[str, Any] = {}
     cols = st.columns(2)
@@ -78,22 +155,39 @@ def _render_profile_editor(component_name: str) -> Dict[str, Any]:
     keys = sorted(properties.keys())
     for idx, key in enumerate(keys):
         prop = properties[key] if isinstance(properties[key], dict) else {}
-        label = f"{key} {'*' if key in required else ''}"
+        unit = _extract_unit(prop)
+        label = f"{key}{f' ({unit})' if unit else ''} {'*' if key in required else ''}"
         help_text = prop.get("description")
         target_col = cols[idx % 2]
+        default_value = _default_value(component_name, key, prop)
 
         with target_col:
             if "enum" in prop and isinstance(prop["enum"], list):
                 options = [""] + [str(v) for v in prop["enum"]]
-                selected = st.selectbox(label, options=options, key=f"{component_name}_{key}", help=help_text)
+                default_index = options.index(str(default_value)) if str(default_value) in options else 0
+                selected = st.selectbox(
+                    label,
+                    options=options,
+                    index=default_index,
+                    key=f"{component_name}_{key}",
+                    help=help_text,
+                )
                 if selected != "":
                     profile[key] = selected
             elif prop.get("type") == "boolean" or (isinstance(prop.get("type"), list) and "boolean" in prop.get("type", [])):
-                tri = st.selectbox(label, options=["", "true", "false"], key=f"{component_name}_{key}", help=help_text)
+                default_tri = "true" if default_value is True else "false" if default_value is False else ""
+                tri_options = ["", "true", "false"]
+                tri = st.selectbox(
+                    label,
+                    options=tri_options,
+                    index=tri_options.index(default_tri),
+                    key=f"{component_name}_{key}",
+                    help=help_text,
+                )
                 if tri:
                     profile[key] = tri == "true"
             else:
-                raw = st.text_input(label, key=f"{component_name}_{key}", help=help_text)
+                raw = st.text_input(label, value=str(default_value), key=f"{component_name}_{key}", help=help_text)
                 value = _coerce_from_schema(raw, prop)
                 if value is not None:
                     profile[key] = value
