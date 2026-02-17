@@ -1,22 +1,55 @@
 # Requirements Agent MVP (Valve)
 
-This starter kit turns the **150-item primary-loop valve requirements library** into a deterministic pipeline:
+This starter kit turns the deterministic requirements generation flow into both:
+- a **CLI pipeline**, and
+- a **Streamlit web app** for interactive multi-component generation.
 
-1. **ValveProfile** (input): a flat JSON with fields like `actuation_type`, `seismic_category`, etc.
+The core flow is:
+1. **ComponentProfile** (input): a flat JSON with schema-defined tags/fields.
 2. **Filter**: evaluates `applicability.when` conditions (AND semantics; `|` means OR).
-3. **Instantiate**: substitutes `{{param}}` placeholders from the ValveProfile.
-4. **Output**: a `ValveRequirementsInstance` JSON with applicable + non-applicable requirements and TBD tracking.
+3. **Instantiate**: substitutes `{{param}}` placeholders from the profile.
+4. **Output**: a component-specific `*RequirementsInstance` JSON with applicable + non-applicable requirements and TBD tracking.
 
 ## Files
-- `schemas/valve_profile.schema.json`
-- `schemas/valve_requirements_instance.schema.json`
+- Component schemas in `schemas/*_profile.schema.json`
+- Instance schemas in `schemas/*_requirements_instance.schema.json`
+- Baselines/templates in `data/*_baseline.json`
 - `src/engine.py` (filter + instantiate + CLI)
+- `src/streamlit_app.py` (interactive web app)
 - `examples/` (sample profile and generated output)
 
 ## Quick start (CLI)
 ```bash
-python -m src.engine --template "data/primary_loop_valve_baseline_v0.2_150reqs.json" --profile examples/valve_profile_example.json --out examples/valve_requirements_instance.json
+python -m src.engine \
+  --template "data/valve_baseline.json" \
+  --profile examples/valve_profile_example.json \
+  --out examples/valve_requirements_instance.json
 ```
+
+## Streamlit web app
+
+### Install runtime dependency
+```bash
+pip install streamlit
+```
+
+### Launch the app
+```bash
+streamlit run src/streamlit_app.py
+```
+
+### What the app supports
+1. Select a component type (valve, pump, turbine, condenser, steam generator, pressurizer).
+2. Fill schema tags/fields (required + optional) directly in a form.
+3. Generate requirements for that component.
+4. Review semantic organization:
+   - summary metrics,
+   - grouping by requirement type,
+   - grouping by lifecycle status,
+   - logical map: Type → Requirement IDs.
+5. Export JSON for each generated component.
+6. Repeat the workflow for additional components in the same session.
+7. Export a single ZIP containing all generated component requirement instances.
 
 ## Condition language (MVP)
 Supported condition forms in `applicability.when`:
@@ -28,24 +61,10 @@ Semantics:
 - The list under `when` is **AND**.
 - The `|` within `=` is **OR**.
 
-## Next step
-Once this deterministic stage is stable, add:
-- standards clause database ingestion (clause-tree + embeddings)
-- requirement-to-clause trace mapping
-- LLM enrichment for parameters / acceptance criteria / gap detection
-
-
 ## Quality gate (validation)
 - The engine adds a `validation` section to the instance output.
 - If `validation.error_count > 0`, `overall_status` is `fail`.
 - Validation checks (MVP): verification presence, acceptance presence, placeholder tracking, and basic atomicity heuristics.
-
-
-## Run tests
-```bash
-python -m unittest discover -s tests -v
-```
-
 
 ## Strict mode and reports
 The CLI supports strict quality-gate behavior and optional validation reports.
@@ -69,4 +88,9 @@ python -m src.engine --template ... --profile ... --out ... --strict
 ```bash
 python -m src.engine --template ... --profile ... --out ... --fail-on-warnings
 python -m src.engine --template ... --profile ... --out ... --max-warnings 5
+```
+
+## Run tests
+```bash
+python -m unittest discover -s tests -v
 ```
