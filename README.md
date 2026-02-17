@@ -30,7 +30,7 @@ python -m src.engine \
 
 ### Install runtime dependency
 ```bash
-pip install streamlit
+pip install -r requirements.txt
 ```
 
 ### Launch the app
@@ -50,6 +50,26 @@ streamlit run src/streamlit_app.py
 5. Export JSON for each generated component.
 6. Repeat the workflow for additional components in the same session.
 7. Export a single ZIP containing all generated component requirement instances.
+
+
+## Deploy on Streamlit Community Cloud
+
+This repository is now set up with the files Streamlit Cloud expects:
+- `requirements.txt` (runtime + notebook/demo Python dependencies),
+- `.streamlit/config.toml` (runtime/server settings).
+
+Deployment steps:
+1. Push this repository to GitHub.
+2. In Streamlit Community Cloud, click **New app**.
+3. Select your repo + branch.
+4. Set the app entrypoint to: `src/streamlit_app.py`.
+5. Deploy.
+
+If you use LLM-related features later, add required API keys in Streamlit Cloud **Secrets** (do not commit `.env`).
+
+Dependency notes:
+- The app itself only needs Streamlit + standard-library modules from this repo.
+- Additional packages in `requirements.txt` are included so hosted environments and demo/notebook workflows have the common data/validation stack available out of the box.
 
 ## Condition language (MVP)
 Supported condition forms in `applicability.when`:
