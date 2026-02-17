@@ -1,0 +1,86 @@
+{
+  "instance_id": "reset-requirements",
+  "template_id": "primary_loop_valve_baseline_v0.2_150reqs",
+  "component": "valve",
+  "component_tag": "reset",
+  "valve_tag": "reset",
+  "generated_utc": "2026-02-17T17:25:49Z",
+  "overall_status": "pass",
+  "counts": {
+    "error_count": 0,
+    "warning_count": 22,
+    "info_count": 0,
+    "issue_count": 22
+  },
+  "by_code": [
+    {
+      "severity": "warning",
+      "code": "REQ_ATOMICITY_ANDOR",
+      "count": 2,
+      "requirement_ids": [
+        "PLV-028",
+        "PLV-112"
+      ],
+      "message_examples": [
+        "Requirement contains 'and/or' which is often ambiguous; consider splitting.",
+        "Requirement contains 'and/or' which is often ambiguous; consider splitting."
+      ]
+    },
+    {
+      "severity": "warning",
+      "code": "REQ_ATOMICITY_CONJUNCTION",
+      "count": 7,
+      "requirement_ids": [
+        "PLV-014",
+        "PLV-026",
+        "PLV-031",
+        "PLV-052",
+        "PLV-056",
+        "PLV-110",
+        "PLV-122"
+      ],
+      "message_examples": [
+        "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting."
+      ]
+    },
+    {
+      "severity": "warning",
+      "code": "REQ_ATOMICITY_MULTI_SHALL",
+      "count": 8,
+      "requirement_ids": [
+        "PLV-014",
+        "PLV-026",
+        "PLV-031",
+        "PLV-052",
+        "PLV-056",
+        "PLV-076",
+        "PLV-110",
+        "PLV-122"
+      ],
+      "message_examples": [
+        "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "Requirement contains 2 occurrences of 'shall'; may be compound."
+      ]
+    },
+    {
+      "severity": "warning",
+      "code": "REQ_PLACEHOLDER_TBD",
+      "count": 5,
+      "requirement_ids": [
+        "PLV-029",
+        "PLV-062",
+        "PLV-063",
+        "PLV-064",
+        "PLV-065"
+      ],
+      "message_examples": [
+        "Requirement has unresolved placeholders that require inputs: ['dp_max']",
+        "Requirement has unresolved placeholders that require inputs: ['seat_leakage_limit']",
+        "Requirement has unresolved placeholders that require inputs: ['stroke_time_limit']"
+      ]
+    }
+  ]
+}

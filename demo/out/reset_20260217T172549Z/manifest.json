@@ -1,0 +1,162 @@
+{
+  "package_version": "0.2",
+  "component": "valve",
+  "profile_key": "valve_profile",
+  "tag_field": "valve_tag",
+  "created_utc": "2026-02-17T17:25:49Z",
+  "component_tag": "reset",
+  "template_id": "primary_loop_valve_baseline_v0.2_150reqs",
+  "summary": {
+    "applicable_count": 85,
+    "non_applicable_count": 65,
+    "tbd_parameter_count": 4
+  },
+  "validation": {
+    "overall_status": "pass",
+    "error_count": 0,
+    "warning_count": 22,
+    "info_count": 0,
+    "issue_count": 22,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-014"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-014"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-026"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-026"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_ANDOR",
+        "message": "Requirement contains 'and/or' which is often ambiguous; consider splitting.",
+        "requirement_id": "PLV-028"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_PLACEHOLDER_TBD",
+        "message": "Requirement has unresolved placeholders that require inputs: ['dp_max']",
+        "requirement_id": "PLV-029"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-031"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-031"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-052"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-052"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-056"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-056"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_PLACEHOLDER_TBD",
+        "message": "Requirement has unresolved placeholders that require inputs: ['seat_leakage_limit']",
+        "requirement_id": "PLV-062"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_PLACEHOLDER_TBD",
+        "message": "Requirement has unresolved placeholders that require inputs: ['stroke_time_limit']",
+        "requirement_id": "PLV-063"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_PLACEHOLDER_TBD",
+        "message": "Requirement has unresolved placeholders that require inputs: ['dp_max']",
+        "requirement_id": "PLV-064"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_PLACEHOLDER_TBD",
+        "message": "Requirement has unresolved placeholders that require inputs: ['flowrate_max']",
+        "requirement_id": "PLV-065"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-076"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-110"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-110"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_ANDOR",
+        "message": "Requirement contains 'and/or' which is often ambiguous; consider splitting.",
+        "requirement_id": "PLV-112"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_MULTI_SHALL",
+        "message": "Requirement contains 2 occurrences of 'shall'; may be compound.",
+        "requirement_id": "PLV-122"
+      },
+      {
+        "severity": "warning",
+        "code": "REQ_ATOMICITY_CONJUNCTION",
+        "message": "Requirement may be compound (contains 'shall ... and ... shall ...'); consider splitting.",
+        "requirement_id": "PLV-122"
+      }
+    ]
+  },
+  "files": {
+    "profile": "valve_profile.json",
+    "requirements_instance": "requirements_instance.json",
+    "validation_report_json": "validation_report.json",
+    "validation_report_csv": "validation_report.csv"
+  },
+  "zip": "reset_20260217T172549Z.zip"
+}

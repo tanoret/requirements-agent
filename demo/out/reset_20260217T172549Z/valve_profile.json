@@ -1,0 +1,10 @@
+{
+  "valve_tag": "reset",
+  "valve_type": "gate",
+  "function": "isolation",
+  "actuation_type": "manual",
+  "code_class": "ASME_III_Class_1",
+  "safety_classification": "non_safety",
+  "seismic_category": "Seismic_Category_I",
+  "environment_profile": "harsh"
+}
