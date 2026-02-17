@@ -145,21 +145,53 @@ def iter_requirements(template: Dict[str, Any]):
             yield r
 
 
-def filter_and_instantiate(template: Dict[str, Any], valve_profile: Dict[str, Any]) -> Dict[str, Any]:
+def _infer_tag_field(profile: Dict[str, Any]) -> Optional[str]:
+    # Prefer *_tag keys if present
+    tag_keys = [k for k in profile.keys() if isinstance(k, str) and k.endswith("_tag") and profile.get(k)]
+    if tag_keys:
+        return sorted(tag_keys)[0]
+    return None
+
+
+def filter_and_instantiate(
+    template: Dict[str, Any],
+    profile: Dict[str, Any],
+    *,
+    component: str = "valve",
+    profile_key: Optional[str] = None,
+    tag_field: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Produce an instance object with applicable + non-applicable requirements.
+
+    Notes:
+      - 'component' is used only to choose sensible defaults for profile_key/tag_field.
+      - The instance embeds the profile under 'profile_key' (e.g., 'valve_profile', 'pump_profile', ...).
+      - No additional top-level keys are added beyond the instance schema fields.
     """
+    profile_key = profile_key or f"{component}_profile"
+    tag_field = tag_field or f"{component}_tag"
+
+    # If the chosen tag_field isn't present, infer from provided profile contents.
+    if profile.get(tag_field) in {None, ""}:
+        inferred = _infer_tag_field(profile)
+        if inferred:
+            tag_field = inferred
+
+    tag_value = profile.get(tag_field) if tag_field else None
+    tag_value = (str(tag_value).strip() if tag_value is not None else "") or component.upper()
+
     applicable = []
     non_applicable = []
     tbd_params_total = set()
 
     for r in iter_requirements(template):
         when_list = r.get("applicability", {}).get("when", ["always"])
-        res = eval_when(valve_profile, when_list)
+        res = eval_when(profile, when_list)
 
         if res.matched:
             text = r.get("text", "")
-            instantiated_text, used, tbd = instantiate_text(text, valve_profile)
+            instantiated_text, used, tbd = instantiate_text(text, profile)
             for p in tbd:
                 tbd_params_total.add(p)
 
@@ -182,11 +214,11 @@ def filter_and_instantiate(template: Dict[str, Any], valve_profile: Dict[str, An
                 "reasons": res.reasons or ["Not applicable"]
             })
 
-    instance = {
-        "instance_id": f"{valve_profile.get('valve_tag', 'VALVE')}-requirements",
+    instance: Dict[str, Any] = {
+        "instance_id": f"{tag_value}-requirements",
         "template_id": template.get("template_id", "unknown_template"),
         "generated_utc": __import__("datetime").datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
-        "valve_profile": valve_profile,
+        profile_key: profile,
         "summary": {
             "applicable_count": len(applicable),
             "non_applicable_count": len(non_applicable),
@@ -196,7 +228,7 @@ def filter_and_instantiate(template: Dict[str, Any], valve_profile: Dict[str, An
         "non_applicable_requirements": non_applicable
     }
 
-    # Quality gate validation
+    # Quality gate validation (custom checks; independent from JSON Schema)
     instance["validation"] = validate_instance(instance)
 
     return instance
@@ -204,9 +236,12 @@ def filter_and_instantiate(template: Dict[str, Any], valve_profile: Dict[str, An
 
 def main(argv: Optional[List[str]] = None) -> int:
     import argparse
-    parser = argparse.ArgumentParser(description="Filter and instantiate valve requirements from a template.")
+    parser = argparse.ArgumentParser(description="Filter and instantiate component requirements from a template.")
+    parser.add_argument("--component", default="valve", help="Component name (affects defaults). Example: valve, pump, turbine, condenser, pressurizer, steam_generator")
+    parser.add_argument("--profile-key", default=None, help="Top-level instance key for the profile (e.g., valve_profile, pump_profile). Defaults to '<component>_profile'.")
+    parser.add_argument("--tag-field", default=None, help="Primary tag field inside the profile (e.g., valve_tag). Defaults to '<component>_tag'.")
     parser.add_argument("--template", required=True, help="Path to requirements library JSON.")
-    parser.add_argument("--profile", required=True, help="Path to ValveProfile JSON.")
+    parser.add_argument("--profile", required=True, help="Path to ComponentProfile JSON (must match the profile schema).")
     parser.add_argument("--out", required=True, help="Output path for instance JSON.")
     parser.add_argument("--strict", action="store_true", help="Exit with non-zero status if validation fails (errors present).")
     parser.add_argument("--fail-on-warnings", action="store_true", help="Exit with non-zero status if any warnings are present.")
@@ -219,7 +254,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     with open(args.profile, "r", encoding="utf-8") as f:
         profile = json.load(f)
 
-    instance = filter_and_instantiate(template, profile)
+    instance = filter_and_instantiate(
+        template,
+        profile,
+        component=args.component,
+        profile_key=args.profile_key,
+        tag_field=args.tag_field,
+    )
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(instance, f, indent=2, ensure_ascii=False)
     print(f"Wrote: {args.out} (applicable={instance['summary']['applicable_count']})")

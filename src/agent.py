@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .code_rag import CodebaseRAG
-from .profile_builder import ValveProfileBuilder
+from .profile_builder import ComponentProfileBuilder
 from .llm_client import LLMClient
 
 from .engine import filter_and_instantiate
@@ -44,15 +44,18 @@ def _extract_first_json_object(text: str) -> Dict[str, Any]:
 @dataclass
 class AgentPaths:
     repo_root: Path
+    component: str
     template_path: Path
     schema_path: Path
     out_dir: Path
+    profile_key: Optional[str] = None
+    tag_field: Optional[str] = None
 
 
 class RequirementsChatAgent:
     """
     Thin orchestration layer:
-      - Maintains a ValveProfile draft
+      - Maintains a component profile draft (schema-driven)
       - Collects user specs until profile is schema-complete
       - Runs deterministic engine to generate requirement instances
       - Produces a package (instance + reports) in out_dir
@@ -62,7 +65,7 @@ class RequirementsChatAgent:
       2) Manual fallback: agent will ask for required fields one by one
 
     CLI entrypoint:
-      python -m src.chat_cli
+      python -m src.chat_cli --component <component>
     """
 
     def __init__(
@@ -72,9 +75,14 @@ class RequirementsChatAgent:
         rag: Optional[CodebaseRAG] = None,
     ) -> None:
         self.paths = paths
+        self.component = (paths.component or "component").strip().lower()
+        self.profile_key = paths.profile_key or f"{self.component}_profile"
+
         self.llm = llm
-        self.builder = ValveProfileBuilder(paths.schema_path)
+        self.builder = ComponentProfileBuilder(paths.schema_path, component=self.component)
         self.profile: Dict[str, Any] = self.builder.new_profile()
+
+        self.tag_field = paths.tag_field or self.builder.primary_tag_field() or f"{self.component}_tag"
 
         # Manual-mode state: which field we are currently asking the user to fill
         self._pending_field: Optional[str] = None
@@ -86,12 +94,13 @@ class RequirementsChatAgent:
 
     def help_text(self) -> str:
         return (
+            f"Component: {self.component}\n"
             "Commands:\n"
             "  /help                 show commands\n"
-            "  /show                 show current ValveProfile\n"
+            f"  /show                 show current {self.builder.title()}\n"
             "  /missing              show missing required fields\n"
             "  /set <field>=<value>  set a field explicitly (works in manual mode)\n"
-            "  /run                  generate requirements + reports into demo/out (also zips)\n"
+            "  /run                  generate requirements + reports into out_dir (also zips)\n"
             "  /reset                clear the current profile\n"
             "  /ask <q>              ask a dev question grounded on the repo code (uses RAG)\n"
             "  /exit                 quit\n"
@@ -109,18 +118,19 @@ class RequirementsChatAgent:
 
     def _llm_patch_from_text(self, user_text: str) -> Dict[str, Any]:
         """
-        Ask the model to extract a JSON patch that updates the ValveProfile.
+        Ask the model to extract a JSON patch that updates the ComponentProfile.
         """
         allowed_keys = sorted(self.builder.props.keys())
         required = self.builder.required
         enums = {k: self.builder.enums.get(k, []) for k in sorted(self.builder.enums.keys())}
 
         # Retrieve small amount of grounding context from the repo
-        ctx = self.rag.retrieve("valve_profile schema required properties enum", k=4)
+        ctx_query = f"{self.profile_key} schema required properties enum"
+        ctx = self.rag.retrieve(ctx_query, k=4)
         ctx_text = "\n\n".join([f"[{c.path}:{c.start_line}-{c.end_line}]\n{c.text}" for c in ctx])
 
         system = (
-            "You extract valve specification updates for a ValveProfile JSON.\n"
+            f"You extract {self.component} specification updates for a {self.builder.title()} JSON.\n"
             "Return ONLY a JSON object (no prose). The JSON object is a PATCH that updates fields.\n"
             "- Use only allowed keys.\n"
             "- If a value is unknown, omit the key.\n"
@@ -130,7 +140,7 @@ class RequirementsChatAgent:
 
         user = (
             f"User message:\n{user_text}\n\n"
-            f"Current ValveProfile (partial):\n{json.dumps(self.profile, indent=2)}\n\n"
+            f"Current profile (partial):\n{json.dumps(self.profile, indent=2)}\n\n"
             f"Required fields:\n{required}\n\n"
             f"Allowed keys:\n{allowed_keys}\n\n"
             f"Enums (only for keys that have them):\n{json.dumps(enums, indent=2)}\n\n"
@@ -161,7 +171,8 @@ class RequirementsChatAgent:
 
             st = self.builder.status(self.profile)
             if st.ok:
-                return True, "✅ ValveProfile looks complete. Use /show to review or /run to generate requirements."
+                return True, f"✅ {self.builder.title()} looks complete. Use /show to review or /run to generate requirements."
+
             missing = self.builder.missing_required(self.profile)
             if missing:
                 nxt = missing[0]
@@ -169,6 +180,7 @@ class RequirementsChatAgent:
                 if nxt in self.builder.enums:
                     return True, f"Set '{field}'. Next required field: '{nxt}'. Choose one: {self.builder.enums[nxt]}"
                 return True, f"Set '{field}'. Next required field: '{nxt}'. Please provide a value."
+
             return True, "Updated profile. Use /show to review or /run to generate requirements."
 
         # No pending field -> ask the next missing required
@@ -180,6 +192,7 @@ class RequirementsChatAgent:
                 opts = self.builder.enums[k]
                 return False, f"Missing required field '{k}'. Choose one: {opts}"
             return False, f"Missing required field '{k}'. Please provide a value."
+
         return False, "Profile appears complete. Use /run to generate requirements, or /show to review."
 
     def apply_user_text(self, user_text: str) -> Tuple[bool, str]:
@@ -203,7 +216,7 @@ class RequirementsChatAgent:
 
         st = self.builder.status(self.profile)
         if st.ok:
-            return True, "✅ ValveProfile looks complete. Use /show to review or /run to generate requirements."
+            return True, f"✅ {self.builder.title()} looks complete. Use /show to review or /run to generate requirements."
         else:
             msg = []
             if st.missing_required:
@@ -222,7 +235,7 @@ class RequirementsChatAgent:
         self._pending_field = None
         st = self.builder.status(self.profile)
         if st.ok:
-            return "✅ Updated. ValveProfile looks complete."
+            return f"✅ Updated. {self.builder.title()} looks complete."
         missing = self.builder.missing_required(self.profile)
         return "Updated. Missing required: " + (", ".join(missing) if missing else "None")
 
@@ -234,18 +247,26 @@ class RequirementsChatAgent:
         """
         st = self.builder.status(self.profile)
         if not st.ok:
-            raise ValueError(f"ValveProfile is incomplete/invalid. Missing={st.missing_required} Errors={st.errors}")
+            raise ValueError(f"Profile is incomplete/invalid. Missing={st.missing_required} Errors={st.errors}")
 
-        instance = filter_and_instantiate(self.template, self.profile)
+        instance = filter_and_instantiate(
+            self.template,
+            self.profile,
+            component=self.component,
+            profile_key=self.profile_key,
+            tag_field=self.tag_field,
+        )
         report = build_report(instance)
 
         ts = __import__("datetime").datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-        tag = str(self.profile.get("valve_tag", "VALVE")).replace("/", "_").replace(" ", "_")
-        package_dir = self.paths.out_dir / (package_name or f"{tag}_{ts}")
+        tag = str(self.profile.get(self.tag_field, self.component.upper())).replace("/", "_").replace(" ", "_")
+        package_dir = self.paths.out_dir / (package_name or f"{self.component}_{tag}_{ts}")
         package_dir.mkdir(parents=True, exist_ok=True)
 
+        profile_filename = f"{self.profile_key}.json"
+
         # Write core artifacts
-        (package_dir / "valve_profile.json").write_text(json.dumps(self.profile, indent=2), encoding="utf-8")
+        (package_dir / profile_filename).write_text(json.dumps(self.profile, indent=2), encoding="utf-8")
         (package_dir / "requirements_instance.json").write_text(json.dumps(instance, indent=2), encoding="utf-8")
 
         write_report_json(report, str(package_dir / "validation_report.json"))
@@ -253,19 +274,27 @@ class RequirementsChatAgent:
 
         # Manifest for downstream agents
         manifest = {
-            "package_version": "0.1",
+            "package_version": "0.2",
             "created_utc": instance.get("generated_utc"),
-            "valve_tag": self.profile.get("valve_tag"),
+            "component": self.component,
+            "profile_key": self.profile_key,
+            "tag_field": self.tag_field,
+            "tag": self.profile.get(self.tag_field),
             "template_id": instance.get("template_id"),
             "summary": instance.get("summary"),
             "validation": instance.get("validation"),
             "files": {
-                "valve_profile": "valve_profile.json",
+                "profile": profile_filename,
                 "requirements_instance": "requirements_instance.json",
                 "validation_report_json": "validation_report.json",
                 "validation_report_csv": "validation_report.csv",
             },
         }
+
+        # Backwards-compatible key (valve-only tooling sometimes expects this)
+        if self.component == "valve" and self.tag_field == "valve_tag":
+            manifest["valve_tag"] = self.profile.get("valve_tag")
+
         (package_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         if make_zip:
@@ -274,6 +303,7 @@ class RequirementsChatAgent:
                 for p in package_dir.rglob("*"):
                     if p.is_file():
                         z.write(p, arcname=str(p.relative_to(package_dir)))
+
             # Add zip name to manifest for convenience (non-breaking)
             manifest["zip"] = zip_path.name
             (package_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
