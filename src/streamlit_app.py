@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -9,11 +10,13 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import streamlit as st
 
-from src.component_registry import COMPONENTS, get_component
-from src.engine import filter_and_instantiate, load_template
-
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from src.component_registry import COMPONENTS, get_component
+from src.engine import filter_and_instantiate, load_template
 
 
 def _schema_path(rel_path: str) -> Path:
