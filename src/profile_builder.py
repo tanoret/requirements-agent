@@ -15,20 +15,16 @@ class ProfileStatus:
 
 class ComponentProfileBuilder:
     """
-    Deterministic helper around a *schema-driven* component profile (JSON Schema):
+    Deterministic helper around a component profile JSON Schema:
       - knows required fields + enums
       - can coerce user inputs (str -> float, null, etc.)
       - can render the profile as a readable markdown table
-
-    This was originally implemented for ValveProfile, but is now generalized to
-    work with any component profile schema that follows the same conventions.
     """
 
-    def __init__(self, schema_path: Path, component: Optional[str] = None) -> None:
+    def __init__(self, schema_path: Path) -> None:
         self.schema_path = schema_path
         self.schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        self.component = component  # optional hint (e.g., "valve", "pump")
-
+        self.title: str = str(self.schema.get("title") or "ComponentProfile")
         self.required: List[str] = list(self.schema.get("required", []))
         self.props: Dict[str, Any] = dict(self.schema.get("properties", {}))
         self.enums: Dict[str, List[str]] = {
@@ -37,26 +33,9 @@ class ComponentProfileBuilder:
             if isinstance(v, dict) and "enum" in v
         }
 
-    def title(self) -> str:
-        return str(self.schema.get("title") or "ComponentProfile")
-
     def new_profile(self) -> Dict[str, Any]:
         # Start empty; callers fill in.
         return {}
-
-    def primary_tag_field(self) -> Optional[str]:
-        """
-        Best-effort inference of the primary tag/identifier field for this profile.
-        Preference order:
-          1) First *required* field that ends with '_tag'
-          2) First property key that ends with '_tag'
-        """
-        for k in self.required:
-            if isinstance(k, str) and k.endswith("_tag"):
-                return k
-
-        tag_keys = sorted([k for k in self.props.keys() if isinstance(k, str) and k.endswith("_tag")])
-        return tag_keys[0] if tag_keys else None
 
     def missing_required(self, profile: Dict[str, Any]) -> List[str]:
         missing: List[str] = []
@@ -103,11 +82,35 @@ class ComponentProfileBuilder:
             except Exception:
                 return None, f"Could not parse number for {key}: {raw!r}"
 
+        # Integers
+        if types == "integer":
+            try:
+                return int(float(raw)), None
+            except Exception:
+                return None, f"Could not parse integer for {key}: {raw!r}"
+
+        # Booleans
+        if types == "boolean":
+            if isinstance(raw, bool):
+                return raw, None
+            s = str(raw).strip().lower()
+            if s in {"true", "yes", "y", "1"}:
+                return True, None
+            if s in {"false", "no", "n", "0"}:
+                return False, None
+            return None, f"Could not parse boolean for {key}: {raw!r}"
+
         # Objects: accept dict only
         if types == "object":
             if isinstance(raw, dict):
                 return raw, None
             return None, f"Expected object/dict for {key}, got: {type(raw).__name__}"
+
+        # Arrays: accept list only
+        if types == "array":
+            if isinstance(raw, list):
+                return raw, None
+            return None, f"Expected array/list for {key}, got: {type(raw).__name__}"
 
         # Default: string
         return str(raw), None
@@ -119,7 +122,7 @@ class ComponentProfileBuilder:
         errors: List[str] = []
         for k, raw in patch.items():
             if k not in self.props:
-                errors.append(f"Unknown field '{k}' (not in {self.title()} schema)")
+                errors.append(f"Unknown field '{k}' (not in {self.title} schema)")
                 continue
             val, err = self.coerce_value(k, raw)
             if err:
@@ -146,6 +149,7 @@ class ComponentProfileBuilder:
         """
         Render a readable markdown table. Good for notebooks and markdown-aware UIs.
         """
+        title = title or self.title
         keys = sorted(self.props.keys())
         rows = []
         for k in keys:
@@ -154,8 +158,7 @@ class ComponentProfileBuilder:
             v = profile.get(k)
             rows.append((k, v))
 
-        hdr = title or self.title()
-        md = [f"### {hdr}", "", "| Field | Value |", "|---|---|"]
+        md = [f"### {title}", "", "| Field | Value |", "|---|---|"]
         for k, v in rows:
             md.append(f"| `{k}` | `{v}` |")
         if not rows:
@@ -163,5 +166,5 @@ class ComponentProfileBuilder:
         return "\n".join(md)
 
 
-# Backwards-compatible alias (old name was ValveProfileBuilder).
+# Backwards-compat alias (existing code used this name)
 ValveProfileBuilder = ComponentProfileBuilder

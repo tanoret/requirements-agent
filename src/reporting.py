@@ -6,24 +6,25 @@ from collections import defaultdict
 from typing import Any, Dict, Optional, Tuple
 
 
-def _detect_profile(instance: Dict[str, Any]) -> Tuple[Optional[str], Dict[str, Any]]:
+def _infer_profile(instance: Dict[str, Any]) -> Tuple[Optional[str], Dict[str, Any]]:
     """
-    Detect the component profile object inside an instance.
-    Looks for a single top-level key that ends with '_profile' and is a dict.
+    Best-effort: find the first top-level key that ends with "_profile" and is a dict.
+    Returns (profile_key, profile_dict).
     """
-    candidates = [(k, v) for k, v in instance.items() if isinstance(k, str) and k.endswith("_profile") and isinstance(v, dict)]
-    if not candidates:
-        return None, {}
-    # Prefer a stable ordering if multiple exist
-    candidates.sort(key=lambda kv: kv[0])
-    return candidates[0]
+    for k, v in instance.items():
+        if k.endswith("_profile") and isinstance(v, dict):
+            return k, v
+    return None, {}
 
 
-def _detect_tag_field(profile: Dict[str, Any]) -> Optional[str]:
-    tag_keys = [k for k in profile.keys() if isinstance(k, str) and k.endswith("_tag") and profile.get(k)]
-    if not tag_keys:
-        return None
-    return sorted(tag_keys)[0]
+def _infer_tag(profile: Dict[str, Any]) -> Optional[str]:
+    """
+    Best-effort: find a field that ends with "_tag" in the profile.
+    """
+    for k, v in profile.items():
+        if k.endswith("_tag") and isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
 
 
 def build_report(instance: Dict[str, Any]) -> Dict[str, Any]:
@@ -33,11 +34,6 @@ def build_report(instance: Dict[str, Any]) -> Dict[str, Any]:
     """
     validation = instance.get("validation", {}) or {}
     issues = validation.get("issues", []) or []
-
-    profile_key, profile = _detect_profile(instance)
-    component = profile_key[:-len("_profile")] if profile_key else None
-    tag_field = _detect_tag_field(profile) if profile else None
-    tag_value = (profile.get(tag_field) if tag_field else None) if profile else None
 
     grouped = defaultdict(lambda: {"count": 0, "requirement_ids": set(), "messages": []})
 
@@ -66,13 +62,17 @@ def build_report(instance: Dict[str, Any]) -> Dict[str, Any]:
         })
     by_code.sort(key=lambda x: (sev_order.get(x["severity"], 99), x["code"]))
 
-    report: Dict[str, Any] = {
+    profile_key, profile = _infer_profile(instance)
+    component = (profile_key[:-len("_profile")] if profile_key and profile_key.endswith("_profile") else None)
+    component_tag = _infer_tag(profile)
+
+    report = {
         "instance_id": instance.get("instance_id"),
         "template_id": instance.get("template_id"),
         "component": component,
-        "profile_key": profile_key,
-        "tag_field": tag_field,
-        "tag": tag_value,
+        "component_tag": component_tag,
+        # legacy compatibility (will be None for non-valves)
+        "valve_tag": (profile.get("valve_tag") if isinstance(profile, dict) else None),
         "generated_utc": instance.get("generated_utc"),
         "overall_status": validation.get("overall_status"),
         "counts": {
@@ -83,11 +83,6 @@ def build_report(instance: Dict[str, Any]) -> Dict[str, Any]:
         },
         "by_code": by_code
     }
-
-    # Backwards-compatible field (older valve-only reports used 'valve_tag')
-    if component == "valve" and tag_value is not None:
-        report["valve_tag"] = tag_value
-
     return report
 
 

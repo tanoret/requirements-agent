@@ -4,7 +4,10 @@ import json
 import os
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Protocol
+
+from .dotenv_loader import load_default_env
 
 
 class LLMClient(Protocol):
@@ -16,12 +19,12 @@ class LLMClient(Protocol):
 class OpenAICompatibleClient:
     """
     Minimal client for any OpenAI-compatible Chat Completions endpoint.
-    Works with many local gateways / proxies that expose /v1/chat/completions.
+    Works with OpenAI and many local gateways / proxies that expose /v1/chat/completions.
 
     Recommended env vars:
-      - LLM_BASE_URL  (e.g., http://localhost:8000)
-      - LLM_API_KEY   (can be dummy for local servers)
-      - LLM_MODEL     (e.g., a model name supported by the endpoint)
+      - LLM_BASE_URL  (e.g., https://api.openai.com OR http://localhost:8000)
+      - LLM_API_KEY   (or OPENAI_API_KEY)
+      - LLM_MODEL     (e.g., gpt-4o-mini)
     """
     base_url: str
     api_key: str
@@ -83,27 +86,41 @@ class OllamaClient:
         return data["message"]["content"]
 
 
-def from_env() -> Optional[LLMClient]:
+def _normalize_mode(mode: str | None) -> str:
+    return (mode or "").strip().lower()
+
+
+def from_env(*, repo_root: Optional[Path] = None, load_env: bool = True) -> Optional[LLMClient]:
     """
     Create a client from environment variables.
     Returns None if no configuration is found.
+
+    If load_env=True, tries to load a .env file first (without overriding existing variables):
+      1) $LLM_ENV_FILE (if set)
+      2) <repo_root>/.env (if repo_root passed)
+      3) <cwd>/.env
 
     Supported modes:
       - LLM_MODE=ollama
       - LLM_MODE=openai_compat
     """
-    mode = (os.getenv("LLM_MODE") or "").strip().lower()
+    if load_env:
+        load_default_env(repo_root=repo_root, override=False)
+
+    mode = _normalize_mode(os.getenv("LLM_MODE"))
     if mode == "ollama":
         base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         model = os.getenv("OLLAMA_MODEL", "llama3.1")
         return OllamaClient(base_url=base, model=model)
 
     if mode == "openai_compat":
-        base = os.getenv("LLM_BASE_URL")
-        key = os.getenv("LLM_API_KEY", "")
-        model = os.getenv("LLM_MODEL")
-        if not base or not model:
-            raise ValueError("LLM_MODE=openai_compat requires LLM_BASE_URL and LLM_MODEL (and optionally LLM_API_KEY).")
+        base = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com"
+        key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+        model = os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL")
+        if not model:
+            raise ValueError("LLM_MODE=openai_compat requires LLM_MODEL (or OPENAI_MODEL).")
+        if not key:
+            raise ValueError("LLM_MODE=openai_compat requires LLM_API_KEY (or OPENAI_API_KEY).")
         return OpenAICompatibleClient(base_url=base, api_key=key, model=model)
 
     return None
