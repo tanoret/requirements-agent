@@ -140,6 +140,10 @@ def _default_value(component_name: str, key: str, schema_prop: Dict[str, Any]) -
     return 1 if prop_type == "integer" else 1.0
 
 
+def _required_schema_keys(properties: Dict[str, Any], required: set[str]) -> List[str]:
+    return sorted(k for k in properties.keys() if k in required)
+
+
 def _render_profile_editor(component_name: str) -> Dict[str, Any]:
     cfg = get_component(component_name)
     schema = _load_schema(cfg.schema_default)
@@ -147,12 +151,17 @@ def _render_profile_editor(component_name: str) -> Dict[str, Any]:
     required = set(schema.get("required", []))
 
     st.subheader(f"{schema.get('title', component_name.title())} fields")
-    st.caption("Fill in tags/fields from the component schema. Values are pre-populated with editable defaults.")
+    st.caption("Showing only required fields from the selected component schema.")
 
     profile: Dict[str, Any] = {}
     cols = st.columns(2)
 
-    keys = sorted(properties.keys())
+    keys = _required_schema_keys(properties, required)
+
+    if not keys:
+        st.info("This component schema does not define required fields.")
+        return profile
+
     for idx, key in enumerate(keys):
         prop = properties[key] if isinstance(properties[key], dict) else {}
         unit = _extract_unit(prop)
